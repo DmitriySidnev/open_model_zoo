@@ -35,7 +35,7 @@ and AP is defined as an area under the
 
 ## Inputs
 
-1. name: "data" , shape: [1x3x256x128] - An input image in the format [BxCxHxW],
+name: "data" , shape: [1x3x256x128] - An input image in the format [BxCxHxW],
    where:
     - B - batch size
     - C - number of channels
