@@ -14,6 +14,7 @@
 import argparse
 import json
 import logging as log
+import os
 from os import path as osp
 
 import motmetrics as mm
@@ -67,19 +68,27 @@ def read_txt(file_name):
     return camera_tracks, last_frame_num
 
 
-def read_gt_tracks(gt_filenames, size_divisor=1, skip_frames=0, skip_heavy_occluded_objects=False):
+def read_gt_tracks(gt_filenames, size_divisor=1, skip_frames=0, skip_heavy_occluded_objects=False, save_gt_det=False):
     camera_tracks = [[] for _ in gt_filenames]
     frame_nums = [[] for _ in gt_filenames]
     for i, filename in tqdm(enumerate(gt_filenames), 'Reading ground truth...'):
         if filename.endswith('.txt'):
             camera_tracks[i], frame_nums[i] = read_txt(filename)
             continue
+        if save_gt_det:
+            gt_det_file = osp.join(osp.abspath(osp.dirname(filename)), '../det')
+            if not osp.exists(gt_det_file):
+                os.makedirs(gt_det_file)
+            gt_det_file = osp.join(gt_det_file, 'det_gt.txt')
+            pattern = '{}, {}, {}, {}, {}, {}, {}, {}, {}, {}\n'
+            gt_det_str = ''
         last_frame_idx = 0
         tree = etree.parse(filename)
         root = tree.getroot()
         for track_xml_subtree in root:
             if track_xml_subtree.tag != 'track':
                 continue
+            id = int(track_xml_subtree.attrib['id'])
             track = {'id': None, 'boxes': [], 'timestamps': []}
             for box_tree in track_xml_subtree.findall('box'):
                 if skip_frames > 0 and int(box_tree.get('frame')) % skip_frames == 0:
@@ -96,10 +105,19 @@ def read_gt_tracks(gt_filenames, size_divisor=1, skip_frames=0, skip_heavy_occlu
                 track['boxes'].append([x_left, y_top, x_right, y_bottom])
                 track['timestamps'].append(int(box_tree.get('frame')) // size_divisor)
                 last_frame_idx = max(last_frame_idx, track['timestamps'][-1])
-                id = [int(tag.text) for tag in box_tree if tag.attrib['name'] == 'id'][0]
+                if id is None:
+                    id = [int(tag.text) for tag in box_tree if tag.attrib['name'] == 'id'][0]
+                if save_gt_det:
+                    frame_id = int(box_tree.get('frame'))
+                    w, h = x_right - x_left, y_bottom - y_top
+                    gt_det_str += pattern.format(frame_id + 1, id, x_left, y_top, w, h, -1, -1, -1, -1)
             track['id'] = id
             camera_tracks[i].append(track)
         frame_nums[i] = last_frame_idx
+        if save_gt_det:
+            with open(gt_det_file, 'w') as f:
+                f.write(gt_det_str)
+            log.info('Detections saved to {}'.format(gt_det_file))
     return camera_tracks, frame_nums
 
 
@@ -124,12 +142,16 @@ def main():
                         help='Scale factor for GT image resolution')
     parser.add_argument('--skip_frames', type=int, default=0,
                         help='Frequency of skipping frames')
+    parser.add_argument('--save_gt_det', action='store_true',
+                        help='Save detection from GT *.xml to *.txt file')
     args = parser.parse_args()
 
     assert len(args.gt_files) == len(args.history_file)
     gt_tracks, last_frame_idx = read_gt_tracks(args.gt_files,
                                                size_divisor=args.size_divisor,
-                                               skip_frames=args.skip_frames)
+                                               skip_frames=args.skip_frames, save_gt_det=args.save_gt_det)
+    if args.save_gt_det:
+        return
     accs = [mm.MOTAccumulator(auto_id=True) for _ in args.gt_files]
     names = [osp.basename(name).split('.')[0] for name in args.history_file]
 
