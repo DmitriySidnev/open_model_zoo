@@ -17,9 +17,6 @@ models:
             dst_width: 544
             dst_height: 512
 
-          - type: normalization
-            mean: [103.53, 116.28, 123.675]
-
         metrics:
           - name: AP@masks
             type: coco_orig_segm_precision

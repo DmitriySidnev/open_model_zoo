@@ -34,7 +34,7 @@ Average Precision (AP) is defined and measured according to standard
 ## Outputs
 
 1.	name: `labels`, shape: [100, ] - Contiguous integer class ID for every
-    detected object, '0' for background, i.e. no object.
+    detected object.
 2.	name: `boxes`, shape: [100, 5] - Bounding boxes around every detected objects
     in (top_left_x, top_left_y, bottom_right_x, bottom_right_y) format and its
     confidence score in range [0, 1].

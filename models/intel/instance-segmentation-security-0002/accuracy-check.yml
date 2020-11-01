@@ -17,14 +17,12 @@ models:
             dst_width: 1024
             dst_height: 768
             aspect_ratio_scale: fit_to_window
+
           - type: padding
             dst_width: 1024
             dst_height: 768
             pad_type: right_bottom
             use_numpy: True 
-
-          - type: normalization
-            mean: [103.53, 116.28, 123.675]
 
         metrics:
           - name: AP@masks
